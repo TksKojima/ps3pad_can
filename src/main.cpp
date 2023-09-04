@@ -5,6 +5,10 @@
 #include "pcb_setting.h"
 
 
+int can_id    = 0x600;
+int can_cycle = 50;
+
+
 void setPs3padToCan_loop(){
 
 // 0,1,2,3 -> Up Left Right Down
@@ -59,7 +63,7 @@ void setPs3padToCan_loop(){
   } 
   candata[5] = can1byte;
 
-  canTxbuf_set( 0x600, 6, 50, candata, 1 );
+  canTxbuf_set( can_id, 6, can_cycle, candata, 1 );
 
 }
 
