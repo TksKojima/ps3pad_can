@@ -27,6 +27,7 @@ void ps3pad_init();
 void ps3pad_loop();
 
 void setup_bt_mac_addres();
+String ps3_getBtMacAddr();
 int  analog2val( int analogval );
 void ps3_notify();
 void ps3_onConnect();

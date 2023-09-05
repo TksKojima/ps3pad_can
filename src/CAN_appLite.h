@@ -83,6 +83,7 @@ void printRecv();
 void setup_CallBack();
 void makeCanMsgJsonDummy();
 void makeCanMsgJson();
+int id2idx( int id );
 
 //extern void canTxbuf_set( int id, int dlc, int cycle, char *data, int txflag  );
 //extern void canTxbuf_test( );

@@ -1,9 +1,12 @@
-#include <CAN_app.h>
+#include <CAN_appLite.h>
 
+// Lite版はcanbufの配列数を0x800にせず、1000以下ぐらいで運用
 
-//canBuffer canbuf[10];
-const int bufNum = 0x800; 
+const int bufNum = 500; 
 canRxBuffer canbuf[bufNum];
+
+short id2idx_arr[ 0x800 ];
+int now_idx = 0;
 
 int tx_test_flag = 0;
 int rx_test_flag = 0;
@@ -13,7 +16,7 @@ int countMax = 5;
 
 
 void can_init(){
-   Serial.println("CAN Sender");
+   //Serial.println("CAN Sender");
    CAN.setPins(32, 27); // ESP-tx:2562-tx,  ESP-rx:2562-rx
    //CAN.setPins(4, 5);
 
@@ -49,11 +52,11 @@ void can_loop(){
 
 void canbuf_init(){
   for( int i=0; i<bufNum; i++){
-    canbuf[i].id = i;
+    canbuf[i].id = -1;
 
     canbuf[i].dlc = 1;
     canbuf[i].txrxFlag = 0;    
-    canbuf[i].cycleTime = 999;
+    canbuf[i].cycleTime = 1500;
     canbuf[i].data.u2[0] = 0;
     canbuf[i].data.u2[1] = 0;
     canbuf[i].data.u2[2] = 0;
@@ -61,6 +64,25 @@ void canbuf_init(){
     
     canbuf[i].prevTime = millis();
   }
+
+  for( int i=0; i<0x800; i++ ){
+    id2idx_arr[i] = -1;
+
+  }
+}
+
+int id2idx( int id ){
+  if( id2idx_arr[id] == -1 ){
+    id2idx_arr[id] = now_idx;
+    now_idx++;
+
+    if( now_idx >= bufNum ){
+      now_idx = bufNum - 1;
+    }
+
+  }
+
+  return id2idx_arr[id];
 
 }
 
@@ -92,27 +114,30 @@ void canTxbuf_set_test(){
 }
 
 void canTxbuf_set( int id, char dlc, int cycle, unsigned char *data, int txflag ){
-  canbuf[id].dlc = dlc;
-  canbuf[id].cycleTime = cycle;
+  int tx_idx = id2idx( id );
+
+  canbuf[tx_idx].id = id;  
+  canbuf[tx_idx].dlc = dlc;  
+  canbuf[tx_idx].cycleTime = cycle;
   for( int n=0; n<dlc; n++){
-    canbuf[id].data.u1[n] = data[n];
+    canbuf[tx_idx].data.u1[n] = data[n];
   }
   if( txflag == 1 ){
-    canbuf[id].txrxFlag = canTxRxFlag::TX;
+    canbuf[tx_idx].txrxFlag = canTxRxFlag::TX;
   }else{
-    canbuf[id].txrxFlag = 0;
+    canbuf[tx_idx].txrxFlag = 0;
   }
   //canbuf[id].prevTime = millis();
-  canbuf[id].noChange.txCnt[0] = millis();
+  canbuf[tx_idx].noChange.txCnt[0] = millis();
 
   //Serial.println("can seted ");
 
 }
 
-void canbuf_sendSingle( int id ){
-  CAN.beginPacket( id );
-  for( int i=0; i<canbuf[id].dlc; i++){
-    CAN.write( canbuf[id].data.u1[i] );
+void canbuf_sendSingle( int idx ){
+  CAN.beginPacket( canbuf[idx].id );
+  for( int i=0; i<canbuf[idx].dlc; i++){
+    CAN.write( canbuf[idx].data.u1[i] );
     // Serial.print("u1: ");
     // Serial.print(canbuf[id].data.u1[i]);     
   }
@@ -126,20 +151,20 @@ void canbuf_sendSingle( int id ){
 
   if( tx_test_flag == 1 ){
     Serial.print("canid: ");
-    Serial.print(id); 
+    Serial.print(canbuf[idx].id); 
     Serial.print(" cycle: ");
-    Serial.print(canbuf[id].cycleTime);    
+    Serial.print(canbuf[idx].cycleTime);    
     Serial.print(" dlc: ");
-    Serial.print( (int)(canbuf[id].dlc));    
+    Serial.print( (int)(canbuf[idx].dlc));    
     Serial.print(" ");
 
-    for( int n=0; n<canbuf[id].dlc; n++){
+    for( int n=0; n<canbuf[idx].dlc; n++){
       Serial.print(" ");
-      Serial.print(canbuf[id].data.u1[n]);    
+      Serial.print(canbuf[idx].data.u1[n]);    
 
     } 
     Serial.print(" time: ");
-    Serial.println(canbuf[id].prevTime);    
+    Serial.println(canbuf[idx].prevTime);    
   }
 }
 
@@ -187,10 +212,11 @@ void onReceive(int packetSize) {
 
     rx_id  = CAN.packetId();
     rx_dlc = CAN.packetDlc();
-    canbuf[rx_id].dlc = rx_dlc;
-    canbuf[rx_id].cycleTime = millis() - canbuf[rx_id].prevTime;
-    canbuf[rx_id].prevTime  = millis();
-    canbuf[rx_id].txrxFlag = canTxRxFlag::RX;
+    int rx_idx = id2idx( rx_id );
+    canbuf[rx_idx].dlc = rx_dlc;
+    canbuf[rx_idx].cycleTime = millis() - canbuf[rx_id].prevTime;
+    canbuf[rx_idx].prevTime  = millis();
+    canbuf[rx_idx].txrxFlag = canTxRxFlag::RX;
 
   if( rx_test_flag == 1 ){
     Serial.print("packet with id 0x");
@@ -212,11 +238,11 @@ void onReceive(int packetSize) {
         Serial.print( readData, HEX );
         Serial.print(", ");
       }
-      if( canbuf[rx_id].data.u1[idx] != readData){
-          canbuf[rx_id].noChange.rxCnt[idx] = 0;
+      if( canbuf[rx_idx].data.u1[idx] != readData){
+          canbuf[rx_idx].noChange.rxCnt[idx] = 0;
       }
-      canbuf[rx_id].data.u1[idx] = readData;
-      canbuf[rx_id].noRecvCnt[idx] = 0;
+      canbuf[rx_idx].data.u1[idx] = readData;
+      canbuf[rx_idx].noRecvCnt[idx] = 0;
       idx++;
     }
 

@@ -5,6 +5,7 @@
         "functional": "cpp",
         "istream": "cpp",
         "tuple": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "typeinfo": "cpp"
     }
 }

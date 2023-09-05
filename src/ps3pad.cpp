@@ -1,5 +1,7 @@
 #include <ps3pad.h>
 
+String btMacAddr = "";
+
 // ps3 pad
 int ps3_battery = 0;
 int ctrlMode = 0;
@@ -33,7 +35,8 @@ void ps3pad_init()
     Ps3.attach(ps3_notify);
     Ps3.attachOnConnect(ps3_onConnect);
     //Ps3.begin("F0:08:D1:D8:29:FE");
-    Ps3.begin("24:6F:28:AA:A8:86");
+    //Ps3.begin("24:6F:28:AA:A8:86");
+    Ps3.begin( ps3_getBtMacAddr().c_str() );
     
     //Ps3.begin("C8:F0:9E:A2:4E:AE");
     Ps3.setPlayer(ctrlMode+1);
@@ -56,8 +59,26 @@ void setup_bt_mac_addres() {
   Serial.println("");
   Serial.printf("[Bluetooth] Mac Address = %02X:%02X:%02X:%02X:%02X:%02X\r\n", btmac[0], btmac[1], btmac[2], btmac[3], btmac[4], btmac[5]);
 
+  btMacAddr="";
+  for( int i=0; i<6; i++){
+    if( i>=1 ){
+      btMacAddr += ":";
+    }
+    if( btmac[i]<16 ){
+      btMacAddr += "0";
+
+    }
+
+    btMacAddr += String(btmac[i], HEX);
+
+  }
+  Serial.println(btMacAddr);
+
 }
 
+String ps3_getBtMacAddr(){
+  return btMacAddr;
+}
 
 int analog2val( int analogval ){
   int ret;
